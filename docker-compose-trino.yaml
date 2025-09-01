@@ -1,0 +1,28 @@
+services:
+  trino-coordinator:
+    image: trinodb/trino:476
+    container_name: trino-coordinator
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./trino_config/coordinator/config.properties:/etc/trino/config.properties
+      - ./trino_config/catalog:/etc/trino/catalog
+      - ./trino_config/coordinator/init.sql:/etc/trino/init.sql
+
+  trino-worker-1:
+    image: trinodb/trino:476
+    container_name: trino-worker-1
+    volumes:
+      - ./trino_config/worker/config.properties:/etc/trino/config.properties
+      - ./trino_config/catalog:/etc/trino/catalog
+    depends_on:
+      - trino-coordinator
+
+  trino-worker-2:
+    image: trinodb/trino:476
+    container_name: trino-worker-2
+    volumes:
+      - ./trino_config/worker/config.properties:/etc/trino/config.properties
+      - ./trino_config/catalog:/etc/trino/catalog
+    depends_on:
+      - trino-coordinator

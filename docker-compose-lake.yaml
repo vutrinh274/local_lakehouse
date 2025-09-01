@@ -1,0 +1,31 @@
+services:
+  nessie-catalog:
+    image: projectnessie/nessie:0.76.6
+    container_name: nessie-catalog
+    ports:
+      - "19120:19120"
+
+  minio:
+    image: minio/minio
+    container_name: minio
+    environment:
+      MINIO_REGION_NAME: us-east-1
+      MINIO_REGION: us-east-1
+      MINIO_DOMAIN: minio
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    entrypoint: >
+      /bin/sh -c "
+      minio server /data --console-address ':9001' &
+      sleep 5;
+      mc alias set batman http://localhost:9000 admin password;
+      mc mb batman/local-lakehouse;
+      tail -f /dev/null"

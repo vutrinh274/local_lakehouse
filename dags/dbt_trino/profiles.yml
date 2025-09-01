@@ -1,0 +1,12 @@
+dbt_trino:
+  outputs:
+    trino_output:
+      type: trino
+      method: none
+      user: batman
+      database: iceberg
+      host: trino-coordinator
+      port: 8080
+      schema: staging
+      threads: 1
+  target: trino_output

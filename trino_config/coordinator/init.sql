@@ -1,0 +1,3 @@
+CREATE SCHEMA landing;
+CREATE SCHEMA staging;
+CREATE SCHEMA curated;
