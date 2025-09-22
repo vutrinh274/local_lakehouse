@@ -4,6 +4,7 @@
 We will set up a lake house with MinIO as the backend storage, Iceberg as the table format, Project Nessie as the catalog for Iceberg, Trino as the query engine, dbt as the abstraction for SQL transformation, and finally, Airflow to glue everything together. For the sample data, we will use five input tables from the AdventureWorks sample dataset: product, product_category, product_subcategory, sale, and territories.
 <img width="986" height="624" alt="image" src="https://github.com/user-attachments/assets/802f9857-0112-4296-a13a-d2e2c5fdb697" />
 
+# Tech Stacks
 
 ## **1. MinIO (Object Storage Layer)**
 
@@ -94,3 +95,125 @@ We will set up a lake house with MinIO as the backend storage, Iceberg as the ta
 
 User / Pipeline → **Airflow** (DAGs) → **dbt** (SQL transformations) → **Trino** (query execution) → **Nessie** (catalog) → **Iceberg** (table format) → **MinIO** (storage).
 Would you like me to also **sketch an architecture diagram** of this full stack (with arrows showing the flow) so you can visualize how dbt and Airflow fit into the lakehouse?
+
+I'll analyze the project structure and provide a comprehensive tree with explanations for each component.
+
+[9 tools called]
+
+Now let me read a few more key files to complete the picture:
+
+[4 tools called]
+
+Perfect! Now I have a comprehensive understanding of the project structure. Let me create a detailed project structure tree with explanations.
+
+# Project Structure Tree
+
+```
+local_lakehouse/
+├── 📋 manage-lakehouse.sh                 # Main orchestration script to start/stop all services
+├── 🐳 docker-compose-airflow.yaml         # Airflow orchestration services (scheduler, worker, webserver, etc.)
+├── 🐳 docker-compose-lake.yaml            # Data lake infrastructure (MinIO + Nessie)
+├── 🐳 docker-compose-trino.yaml           # Trino query engine (coordinator + workers)
+├── 🐳 Dockerfile                          # Custom Airflow image with dbt dependencies
+├── 📄 requirements-airflow.txt            # Airflow dependencies
+├── 📄 requirements-dbt.txt                # dbt dependencies (dbt-trino, dbt-core)
+├── 📖 README.md                           # Project documentation and architecture overview
+│
+├── 🎯 dags/                               # Airflow DAGs and workflows
+│   ├── 🔧 custom_operator/
+│   │   ├── __pycache__/                   # Python bytecode cache
+│   │   └── dbt_operator.py                # Custom Airflow operator for dbt Core execution
+│   ├── dbt_dag.py                         # Main Airflow DAG orchestrating dbt pipeline
+│   │
+│   └── 🏗️ dbt_trino/                      # dbt project for data transformations
+│       ├── dbt_project.yml                # dbt project configuration
+│       ├── profiles.yml                   # dbt connection profiles (Trino connection)
+│       ├── README.md                      # dbt project documentation
+│       │
+│       ├── 📊 seeds/                      # Raw CSV data files (source data)
+│       │   ├── product_categories.csv     # Product category reference data
+│       │   ├── product_subcategories.csv  # Product subcategory reference data
+│       │   ├── products.csv               # Product master data
+│       │   ├── sales.csv                  # Sales transaction data
+│       │   └── territories.csv            # Territory reference data
+│       │
+│       ├── 🔄 models/                     # dbt transformation models
+│       │   ├── staging/                   # Staging layer (cleaned, standardized data)
+│       │   │   ├── stg_product_categories.sql
+│       │   │   ├── stg_product_subcategories.sql
+│       │   │   ├── stg_products.sql
+│       │   │   ├── stg_sales.sql
+│       │   │   └── stg_territories.sql
+│       │   │
+│       │   └── curated/                   # Curated layer (business logic, analytics-ready)
+│       │       ├── dim_country.sql        # Country dimension table
+│       │       ├── dim_product.sql        # Product dimension table
+│       │       ├── fact_sale.sql          # Sales fact table
+│       │       └── schema.yml             # dbt model documentation and tests
+│       │
+│       ├── 🔍 analyses/                   # Ad-hoc SQL analysis files
+│       ├── 🧪 tests/                      # Custom dbt tests
+│       ├── 📸 snapshots/                  # dbt snapshots for slowly changing dimensions
+│       └── 🔧 macros/                     # dbt macros and reusable SQL functions
+│           └── adjust_schema_name.sql     # Custom macro for schema naming
+│
+└── ⚙️ trino_config/                       # Trino query engine configuration
+    ├── coordinator/                       # Trino coordinator configuration
+    │   ├── config.properties              # Coordinator settings
+    │   └── init.sql                       # Initial schema creation (landing, staging, curated)
+    ├── worker/                            # Trino worker configuration
+    │   └── config.properties              # Worker settings
+    └── catalog/                           # Data catalog configuration
+        └── iceberg.properties             # Iceberg catalog config (connects to Nessie + MinIO)
+```
+
+## Component Explanations
+
+### **Infrastructure & Orchestration**
+
+* **`manage-lakehouse.sh`**: Master control script that starts services in proper order (lake → trino → airflow) and initializes Trino schemas
+
+* **Docker Compose Files**: Separate service definitions for clean separation of concerns
+  * `docker-compose-lake.yaml`: MinIO (S3-compatible storage) + Nessie (Git-like data catalog)
+  * `docker-compose-trino.yaml`: Distributed query engine (1 coordinator + 2 workers)
+  * `docker-compose-airflow.yaml`: Full Airflow setup with Celery executor, Redis, PostgreSQL
+
+### **Data Pipeline (dbt)**
+
+* **`dbt_trino/`**: Complete dbt project implementing medallion architecture
+  * **Seeds**: Raw CSV files loaded as Iceberg tables in `landing` schema
+  * **Staging Models**: Data cleaning and standardization in `staging` schema
+  * **Curated Models**: Business logic and dimensional modeling in `curated` schema
+  * **Configuration**: Connects to Trino using `profiles.yml`, schema routing via `dbt_project.yml`
+
+### **Workflow Orchestration (Airflow)**
+
+* **`dags/dbt_dag.py`**: Main pipeline DAG that runs `dbt seed` → `dbt run` daily
+
+* **`custom_operator/dbt_operator.py`**: Custom Airflow operator wrapping dbt Core CLI for native execution
+* **Custom Dockerfile**: Extends official Airflow image with dbt dependencies
+
+### **Query Engine Configuration (Trino)**
+
+* **`trino_config/`**: Complete Trino cluster configuration
+  * **Iceberg Catalog**: Connects to Nessie catalog with MinIO as storage backend
+  * **Coordinator**: Query planning and coordination
+  * **Workers**: Distributed query execution
+  * **Init SQL**: Creates the three-layer schema structure (landing/staging/curated)
+
+### **Data Architecture Pattern**
+
+This implements a **Medallion Architecture**:
+
+1. **Bronze/Landing**: Raw CSV data loaded via dbt seeds into Iceberg tables
+2. **Silver/Staging**: Cleaned, standardized data with consistent naming and types  
+3. **Gold/Curated**: Business-ready dimensional model (facts + dimensions) for analytics
+
+The entire stack provides a production-like lakehouse with:
+
+* **ACID transactions** (Iceberg)
+* **Schema evolution** (Iceberg + Nessie)
+* **Version control for data** (Nessie branching)
+* **Distributed SQL processing** (Trino)
+* **Workflow orchestration** (Airflow)
+* **SQL-based transformations** (dbt)
