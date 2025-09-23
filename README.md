@@ -217,3 +217,9 @@ The entire stack provides a production-like lakehouse with:
 * **Distributed SQL processing** (Trino)
 * **Workflow orchestration** (Airflow)
 * **SQL-based transformations** (dbt)
+
+Run
+
+```
+./manage-lakehouse.sh start
+```

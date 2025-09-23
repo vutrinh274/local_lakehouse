@@ -220,3 +220,4 @@ __marimo__/
 
 logs/
 .DS_Store
+config/airflow.cfg
