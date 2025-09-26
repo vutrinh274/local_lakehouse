@@ -33,13 +33,62 @@ with DAG(
         full_refresh=True
     )
 
-    dbt_run_task = DbtCoreOperator(
-        task_id='dbt_run',
+    # Run staging models one by one to avoid Iceberg concurrency issues
+    dbt_run_stg_categories = DbtCoreOperator(
+        task_id='dbt_run_stg_categories',
         dbt_project_dir=DBT_PROJECT_PATH,
         dbt_profiles_dir=DBT_PROJECT_PATH,
         dbt_command='run',
+        select='stg_product_categories',
+        full_refresh=True
+    )
+
+    dbt_run_stg_subcategories = DbtCoreOperator(
+        task_id='dbt_run_stg_subcategories',
+        dbt_project_dir=DBT_PROJECT_PATH,
+        dbt_profiles_dir=DBT_PROJECT_PATH,
+        dbt_command='run',
+        select='stg_product_subcategories',
+        full_refresh=True
+    )
+
+    dbt_run_stg_products = DbtCoreOperator(
+        task_id='dbt_run_stg_products',
+        dbt_project_dir=DBT_PROJECT_PATH,
+        dbt_profiles_dir=DBT_PROJECT_PATH,
+        dbt_command='run',
+        select='stg_products',
+        full_refresh=True
+    )
+
+    dbt_run_stg_sales = DbtCoreOperator(
+        task_id='dbt_run_stg_sales',
+        dbt_project_dir=DBT_PROJECT_PATH,
+        dbt_profiles_dir=DBT_PROJECT_PATH,
+        dbt_command='run',
+        select='stg_sales',
+        full_refresh=True
+    )
+
+    dbt_run_stg_territories = DbtCoreOperator(
+        task_id='dbt_run_stg_territories',
+        dbt_project_dir=DBT_PROJECT_PATH,
+        dbt_profiles_dir=DBT_PROJECT_PATH,
+        dbt_command='run',
+        select='stg_territories',
+        full_refresh=True
+    )
+
+    # Run curated models after all staging models
+    dbt_run_curated_task = DbtCoreOperator(
+        task_id='dbt_run_curated',
+        dbt_project_dir=DBT_PROJECT_PATH,
+        dbt_profiles_dir=DBT_PROJECT_PATH,
+        dbt_command='run',
+        select='tag:curated',
+        full_refresh=True
     )
 
     
-    # Define the task dependencies
-    dbt_seed_task >> dbt_run_task
+    # Define the task dependencies - sequential execution to avoid Iceberg conflicts
+    dbt_seed_task >> dbt_run_stg_categories >> dbt_run_stg_subcategories >> dbt_run_stg_products >> dbt_run_stg_sales >> dbt_run_stg_territories >> dbt_run_curated_task

@@ -48,7 +48,15 @@ class DbtCoreOperator(BaseOperator):
         
         res: dbtRunnerResult = self.runner.invoke(command_args)
         
-        self.log.info("dbt command executed successfully.")
-        
-        for r in res.result:
-            print(f"{r.node.name}: {r.status}")
+        if res.success:
+            self.log.info("dbt command executed successfully.")
+            
+            if res.result:
+                for r in res.result:
+                    print(f"{r.node.name}: {r.status}")
+        else:
+            self.log.error("dbt command failed.")
+            if res.exception:
+                raise AirflowException(f"dbt command failed: {res.exception}")
+            else:
+                raise AirflowException("dbt command failed with unknown error")

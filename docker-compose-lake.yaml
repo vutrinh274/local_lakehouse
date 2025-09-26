@@ -2,12 +2,16 @@ services:
   nessie-catalog:
     image: projectnessie/nessie:0.76.6
     container_name: nessie-catalog
+    networks:
+      - lakehouse
     ports:
       - "19120:19120"
 
   minio:
     image: minio/minio
     container_name: minio
+    networks:
+      - lakehouse
     environment:
       MINIO_REGION_NAME: us-east-1
       MINIO_REGION: us-east-1
@@ -29,3 +33,8 @@ services:
       mc alias set batman http://localhost:9000 admin password;
       mc mb batman/local-lakehouse;
       tail -f /dev/null"
+
+networks:
+  lakehouse:
+    name: lakehouse
+    external: true

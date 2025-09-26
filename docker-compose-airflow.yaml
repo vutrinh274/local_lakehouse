@@ -44,42 +44,41 @@
 #
 # Feel free to modify this file to suit your needs.
 ---
-x-airflow-common:
-  &airflow-common
+x-airflow-common: &airflow-common
   # In order to add custom dependencies or upgrade provider distributions you can use your extended image.
   # Comment the image line, place your Dockerfile in the directory where you placed the docker-compose.yaml
   # and uncomment the "build" line below, Then run `docker-compose build` to build the images.
   # image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:3.0.6}
   build: .
-  environment:
-    &airflow-common-env
+  environment: &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
     AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
     AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres/airflow
     AIRFLOW__CELERY__BROKER_URL: redis://:@redis:6379/0
-    AIRFLOW__CORE__FERNET_KEY: ''
-    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
-    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/execution/'
+    AIRFLOW__CORE__FERNET_KEY: ""
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: "http://airflow-apiserver:8080/execution/"
     # yamllint disable rule:line-length
     # Use simple http server on scheduler for health checks
     # See https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/logging-monitoring/check-health.html#scheduler-health-check-server
     # yamllint enable rule:line-length
-    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
     # WARNING: Use _PIP_ADDITIONAL_REQUIREMENTS option ONLY for a quick checks
     # for other purpose (development, test and especially production usage) build/extend Airflow image.
     _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-}
     # The following line can be used to set a custom config file, stored in the local config folder
-    AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
+    AIRFLOW_CONFIG: "/opt/airflow/config/airflow.cfg"
   volumes:
     - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
     - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
     - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
   user: "${AIRFLOW_UID:-50000}:0"
-  depends_on:
-    &airflow-common-depends-on
+  networks:
+    - lakehouse
+  depends_on: &airflow-common-depends-on
     redis:
       condition: service_healthy
     postgres:
@@ -88,6 +87,8 @@ x-airflow-common:
 services:
   postgres:
     image: postgres:13
+    networks:
+      - lakehouse
     environment:
       POSTGRES_USER: airflow
       POSTGRES_PASSWORD: airflow
@@ -105,6 +106,8 @@ services:
     # Redis is limited to 7.2-bookworm due to licencing change
     # https://redis.io/blog/redis-adopts-dual-source-available-licensing/
     image: redis:7.2-bookworm
+    networks:
+      - lakehouse
     expose:
       - 6379
     healthcheck:
@@ -151,7 +154,11 @@ services:
     <<: *airflow-common
     command: dag-processor
     healthcheck:
-      test: ["CMD-SHELL", 'airflow jobs check --job-type DagProcessorJob --hostname "$${HOSTNAME}"']
+      test:
+        [
+          "CMD-SHELL",
+          'airflow jobs check --job-type DagProcessorJob --hostname "$${HOSTNAME}"',
+        ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -191,7 +198,11 @@ services:
     <<: *airflow-common
     command: triggerer
     healthcheck:
-      test: ["CMD-SHELL", 'airflow jobs check --job-type TriggererJob --hostname "$${HOSTNAME}"']
+      test:
+        [
+          "CMD-SHELL",
+          'airflow jobs check --job-type TriggererJob --hostname "$${HOSTNAME}"',
+        ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -287,11 +298,11 @@ services:
     # yamllint enable rule:line-length
     environment:
       <<: *airflow-common-env
-      _AIRFLOW_DB_MIGRATE: 'true'
-      _AIRFLOW_WWW_USER_CREATE: 'true'
+      _AIRFLOW_DB_MIGRATE: "true"
+      _AIRFLOW_WWW_USER_CREATE: "true"
       _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME:-airflow}
       _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-airflow}
-      _PIP_ADDITIONAL_REQUIREMENTS: ''
+      _PIP_ADDITIONAL_REQUIREMENTS: ""
     user: "0:0"
 
   airflow-cli:
@@ -333,3 +344,8 @@ services:
 
 volumes:
   postgres-db-volume:
+
+networks:
+  lakehouse:
+    name: lakehouse
+    external: true
